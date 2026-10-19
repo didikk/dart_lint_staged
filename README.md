@@ -12,7 +12,7 @@ This package is a fork of [`hyiso/lint_staged`](https://github.com/hyiso/lint_st
 - Bounded concurrency: `--processes` defaults to CPU count (no unbounded fan-out)
 - Safer process pool: no post-run PID kill; iterative workers
 
-Config in `pubspec.yaml` still uses the `lint_staged:` key for drop-in compatibility.
+Config lives under the `dart_lint_staged:` key in `pubspec.yaml`. The legacy `lint_staged:` key is still read as a fallback.
 
 ## Why
 
@@ -27,7 +27,7 @@ Full-project lint slows commits and surfaces noise from untouched files. Run hoo
    - Git hooks docs: [git-scm.com](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks)
 3. Configure tasks in `pubspec.yaml`:
    ```yaml
-   lint_staged:
+   dart_lint_staged:
      'lib/**.dart': dart format && dart fix --apply
    ```
    - See [Configuration](#configuration) for more info
@@ -64,7 +64,7 @@ Options:
 Configure in your `pubspec.yaml`:
 
 ```yaml
-lint_staged:
+dart_lint_staged:
   'lib/**.dart': your-cmd
 ```
 
@@ -77,7 +77,7 @@ Linter commands work on a subset of all staged files, defined by a _glob pattern
 ### Exclude pattern: `!`
 
 ```yaml
-lint_staged:
+dart_lint_staged:
   'lib/**.dart': your-cmd
   '!lib/**.g.dart': your-cmd
 ```
@@ -95,7 +95,7 @@ Any executables on your `$PATH` (for example `dart`, `flutter`). Commands are no
 Join commands with ` && `. They run sequentially (a failure stops the chain); each receives the batched file list. If several globs match the same file, their commands also run one after another in config order:
 
 ```yaml
-lint_staged:
+dart_lint_staged:
   'lib/**.dart': dart format && dart fix --apply
 ```
 
@@ -117,14 +117,14 @@ _Note: do not pass file paths yourself; dart_lint_staged appends staged files fo
 ### Format staged Dart files
 
 ```yaml
-lint_staged:
+dart_lint_staged:
   'lib/**.dart': dart format
 ```
 
 ### Apply fixes to staged Dart files
 
 ```yaml
-lint_staged:
+dart_lint_staged:
   'lib/**.dart': dart fix --apply
 ```
 

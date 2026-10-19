@@ -180,7 +180,7 @@ void main() {
       final project = IntegrationProject();
       print('dir: ${project.path}');
       await project.setup();
-      final config = '''lint_staged:
+      final config = '''dart_lint_staged:
   'lib/**.dart': git stash drop
 ''';
       await project.fs.write('pubspec.yaml', config);

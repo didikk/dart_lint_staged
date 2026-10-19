@@ -15,4 +15,4 @@ Initial release of **dart_lint_staged**, an improved fork of
 - **FIX**: Missing `pubspec.yaml` reports "no configuration" instead of throwing; repeated whitespace in commands no longer yields empty args
 - **PERF**: `git status` skips untracked files; initial git reads run concurrently; files matched by several globs are staged once
 - **CHORE**: Package renamed to `dart_lint_staged`; requires Dart SDK `^3.0.0`
-- Config key remains `lint_staged:` in `pubspec.yaml` for drop-in compatibility
+- Config key is `dart_lint_staged:` in `pubspec.yaml`; legacy `lint_staged:` still read as fallback

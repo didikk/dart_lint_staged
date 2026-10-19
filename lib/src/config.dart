@@ -14,7 +14,8 @@ Future<Map<String, List<String>>?> loadConfig({
   final pubspec = File(pubspecPath);
   if (!pubspec.existsSync()) return null;
   final yaml = loadYaml(pubspec.readAsStringSync());
-  final map = yaml is Map ? yaml['lint_staged'] : null;
+  final map =
+      yaml is Map ? (yaml['dart_lint_staged'] ?? yaml['lint_staged']) : null;
   if (map is! Map) {
     return null;
   }
