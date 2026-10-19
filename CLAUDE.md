@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`dart_lint_staged`: Dart port of JS lint-staged (fork of `hyiso/lint_staged`). Runs configured commands on git-staged files, as a pre-commit hook. Config lives under the `lint_staged:` key in the consumer's `pubspec.yaml` (glob → command, `!glob` excludes, ` && ` chains commands). Each command gets matched files appended as args in batched invocations.
+`dart_lint_staged`: Dart port of JS lint-staged (fork of `hyiso/lint_staged`). Runs configured commands on git-staged files, as a pre-commit hook. Config lives under the `dart_lint_staged:` key (legacy `lint_staged:` still read) in the consumer's `pubspec.yaml` (glob → command, `!glob` excludes, ` && ` chains commands). Each command gets matched files appended as args in batched invocations.
 
 ## Commands
 
@@ -18,7 +18,7 @@ dart test -n "name substring"                       # single test by name
 dart run dart_lint_staged --help                    # run the CLI (bin/dart_lint_staged.dart)
 ```
 
-Pre-commit for this repo itself is husky (`.husky/`) running the tool on its own `lint_staged:` config in `pubspec.yaml`.
+Pre-commit for this repo itself is husky (`.husky/`) running the tool on its own `dart_lint_staged:` config in `pubspec.yaml`.
 
 ## Architecture
 

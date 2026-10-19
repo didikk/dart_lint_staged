@@ -163,7 +163,7 @@ void main() {
       final project = IntegrationProject();
       print('dir: ${project.path}');
       await project.setup();
-      final config = '''lint_staged:
+      final config = '''dart_lint_staged:
   'lib/**.dart': git stash drop
 ''';
       await project.fs.write('pubspec.yaml', config);
@@ -227,7 +227,7 @@ void main() {
       final project = IntegrationProject();
       await project.setup();
       await project.fs.write('pubspec.yaml',
-          "lint_staged:\n  'lib/**.dart': dart format && dart format --set-exit-if-changed\n");
+          "dart_lint_staged:\n  'lib/**.dart': dart format && dart format --set-exit-if-changed\n");
       await project.fs.write('lib/main.dart', kUnFormattedDart);
       await project.git.run(['add', 'lib/main.dart']);
 
@@ -242,7 +242,7 @@ void main() {
       final project = IntegrationProject();
       await project.setup();
       await project.fs.write('pubspec.yaml',
-          "lint_staged:\n  'lib/**.dart': no_such_command_xyz\n");
+          "dart_lint_staged:\n  'lib/**.dart': no_such_command_xyz\n");
       await project.fs.write('lib/main.dart', kFormattedDart);
       await project.git.run(['add', 'lib/main.dart']);
       await project.fs.write('lib/main.dart', '$kFormattedDart// unstaged\n');
@@ -258,7 +258,7 @@ void main() {
       final project = IntegrationProject();
       await project.setup();
       await project.fs.write('pubspec.yaml',
-          "lint_staged:\n  'lib/**.dart': dart format\n  '**.dart': dart format --set-exit-if-changed\n");
+          "dart_lint_staged:\n  'lib/**.dart': dart format\n  '**.dart': dart format --set-exit-if-changed\n");
       await project.fs.write('lib/main.dart', kUnFormattedDart);
       await project.git.run(['add', 'lib/main.dart']);
 
