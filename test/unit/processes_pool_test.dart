@@ -65,5 +65,20 @@ void main() {
       await pool.start();
       expect(pool.tasksNumber, 0);
     });
+
+    test('addJob never exceeds size concurrent jobs', () async {
+      var running = 0;
+      var peak = 0;
+      final pool = ProcessesPool(size: 2);
+      for (var i = 0; i < 6; i++) {
+        pool.addJob(() async {
+          peak = ++running > peak ? running : peak;
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          running--;
+        });
+      }
+      await pool.start();
+      expect(peak, 2);
+    });
   });
 }

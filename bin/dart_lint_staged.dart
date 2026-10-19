@@ -28,8 +28,13 @@ void main(List<String> arguments) async {
   final diffFilter = argResults['diff-filter'];
   final stash = argResults['stash'] == true;
   final numberOfProcessors = argResults['processes'] != null
-      ? int.parse(argResults['processes'])
+      ? int.tryParse(argResults['processes'])
       : null;
+  if (argResults['processes'] != null &&
+      (numberOfProcessors == null || numberOfProcessors < 1)) {
+    stderr.writeln('--processes must be an integer >= 1');
+    exit(2);
+  }
   final passed = await lintStaged(
       allowEmpty: allowEmpty,
       diff: diff,

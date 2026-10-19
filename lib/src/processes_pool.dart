@@ -43,22 +43,14 @@ class ProcessTask {
   }
 }
 
-class ProcessEntity {
-  final ProcessTask task;
-  final Future<ProcessResult> process;
-  const ProcessEntity({
-    required this.task,
-    required this.process,
-  });
-}
+typedef PoolJob = Future<void> Function();
 
 class ProcessesPool {
   final int size;
-  final Queue<ProcessTask> _tasks = Queue();
-  final List<ProcessEntity?> _processes = [];
+  final Queue<PoolJob> _jobs = Queue();
   bool isStarted = false;
 
-  int get tasksNumber => _tasks.length;
+  int get tasksNumber => _jobs.length;
 
   ProcessesPool({
     required this.size,
@@ -67,51 +59,38 @@ class ProcessesPool {
   void addAll({
     List<ProcessTask> tasks = const [],
   }) {
-    _tasks.addAll(tasks);
+    tasks.forEach(addTask);
   }
 
   void addTask(ProcessTask task) {
-    _tasks.add(task);
+    addJob(() async => task.onCompleted?.call(await task.run()));
   }
 
-  Future<void> start({
-    OnCompleted? onCompleted,
-  }) async {
+  /// Queue an arbitrary async job, e.g. several commands that must run in order.
+  void addJob(PoolJob job) {
+    _jobs.add(job);
+  }
+
+  Future<void> start() async {
     if (isStarted) {
       throw Exception('You have already started');
     }
     isStarted = true;
-    final workerCount = size < _tasks.length ? size : _tasks.length;
-    if (workerCount == 0) {
+    try {
+      final workerCount = size < _jobs.length ? size : _jobs.length;
+      await Future.wait(List.generate(workerCount, (_) => _runWorker()));
+    } finally {
       isStarted = false;
-      return;
     }
-    _processes.addAll(List.filled(workerCount, null));
-    await Future.wait(List.generate(workerCount, (int index) {
-      return _runWorker(
-        index: index,
-        onCompleted: onCompleted,
-      );
-    }));
-    isStarted = false;
   }
 
-  Future<void> _runWorker({
-    required int index,
-    OnCompleted? onCompleted,
-  }) async {
-    while (_tasks.isNotEmpty) {
-      final ProcessTask task = _tasks.removeFirst();
-      final Future<ProcessResult> process = task.run();
-      _processes[index] = ProcessEntity(process: process, task: task);
-      final ProcessResult result = await process;
-      _processes[index] = null;
-      (onCompleted ?? task.onCompleted)?.call(result);
+  Future<void> _runWorker() async {
+    while (_jobs.isNotEmpty) {
+      await _jobs.removeFirst()();
     }
   }
 
   void close() {
-    _tasks.clear();
-    _processes.clear();
+    _jobs.clear();
   }
 }

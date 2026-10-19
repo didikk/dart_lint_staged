@@ -103,7 +103,7 @@ class Workflow {
     await Future.wait([
       fs.read(_mergeHeadFilename).then((value) => mergeHeadContent = value),
       fs.read(_mergeModeFilename).then((value) => mergeModeContent = value),
-      fs.read(_mergeMsgFilename).then((value) => mergeModeContent = value)
+      fs.read(_mergeMsgFilename).then((value) => mergeMsgContent = value)
     ]);
   }
 
