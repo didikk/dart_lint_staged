@@ -80,7 +80,7 @@ class Git {
   /// both the "from" and "to" filenames, where "from" is no longer on disk.
   ///
   Future<List<String>> get partiallyStagedFiles async {
-    final status = await _stdout(['status', '-z']);
+    final status = await _stdout(['status', '-z', '-uno']);
     if (status.isEmpty) {
       return [];
     }

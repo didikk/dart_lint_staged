@@ -12,7 +12,7 @@ class FileSystem {
     if (!await file.exists()) {
       await file.create(recursive: true);
     }
-    file.writeAsString(content, mode: FileMode.append);
+    await file.writeAsString(content, mode: FileMode.append);
   }
 
   Future<void> write(String filename, String content) async {
@@ -20,7 +20,7 @@ class FileSystem {
     if (!await file.exists()) {
       await file.create(recursive: true);
     }
-    file.writeAsString(content);
+    await file.writeAsString(content);
   }
 
   Future<void> remove(String filename) async {

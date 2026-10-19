@@ -38,7 +38,8 @@ Future<Context> runAll({
 
   /// Test whether we have any commits or not.
   /// Stashing must be disabled with no initial commit.
-  final hasInitialCommit = (await git.lastCommit).isNotEmpty;
+  final results = await Future.wait([git.lastCommit, git.stagedFiles]);
+  final hasInitialCommit = (results[0] as String).isNotEmpty;
 
   /// dart_lint_staged will create a backup stash only when there's an initial commit,
   /// and when using the default list of staged files by default
@@ -51,7 +52,7 @@ Future<Context> runAll({
             : 'there\'s no initial commit yet';
     stdout.warn('Skipping backup because $reason.');
   }
-  final stagedFiles = await git.stagedFiles;
+  final stagedFiles = results[1] as List<String>;
   if (stagedFiles.isEmpty) {
     ctx.output.add(kNoStagedFilesMsg);
     return ctx;
@@ -67,7 +68,7 @@ Future<Context> runAll({
     return ctx;
   }
   final matchedFiles =
-      groups.values.expand((element) => element.files).toList();
+      groups.values.expand((element) => element.files).toSet().toList();
   final matchedFileChunks =
       chunkFiles(matchedFiles, maxArgLength: maxArgLength);
   final workflow = Workflow(
@@ -91,33 +92,57 @@ Future<Context> runAll({
   spinner.progress('Run tasks for staged files...');
   final poolSize = numOfProcesses ?? Platform.numberOfProcessors;
   final processesPool = ProcessesPool(size: poolSize);
-  for (var group in groups.values) {
-    for (var script in group.scripts) {
-      final args = script.split(' ');
-      final exe = args.removeAt(0);
-      final fileChunks = chunkFiles(group.files, maxArgLength: maxArgLength);
-      for (var files in fileChunks) {
-        processesPool.addTask(
-          ProcessTask(
-            exe,
-            [...args, ...files],
-            workingDirectory: workingDirectory,
-            onCompleted: (result) {
-              final messsages = ['$script ${files.join(' ')}'];
-              if (result.stderr.toString().trim().isNotEmpty) {
-                messsages.add(red(result.stderr.toString().trim()));
-              }
-              if (result.stdout.toString().trim().isNotEmpty) {
-                messsages.add(result.stdout.toString().trim());
-              }
-              _verbose(messsages.join('\n'));
-              if (result.exitCode != 0) {
-                ctx.output.add(messsages.join('\n'));
-                ctx.errors.add(kTaskError);
-              }
-            },
-          ),
-        );
+  Future<void> runCommands(
+      List<List<String>> commands, List<String> files) async {
+    for (var command in commands) {
+      final script = command.join(' ');
+      final messsages = ['$script ${files.join(' ')}'];
+      try {
+        final result = await ProcessTask(
+          command.first,
+          [...command.skip(1), ...files],
+          workingDirectory: workingDirectory,
+        ).run();
+        if (result.stderr.toString().trim().isNotEmpty) {
+          messsages.add(red(result.stderr.toString().trim()));
+        }
+        if (result.stdout.toString().trim().isNotEmpty) {
+          messsages.add(result.stdout.toString().trim());
+        }
+        _verbose(messsages.join('\n'));
+        if (result.exitCode == 0) continue;
+      } on Exception catch (e) {
+        messsages.add(red(e is ProcessException ? e.message : '$e'));
+      }
+      ctx.output.add(messsages.join('\n'));
+      ctx.errors.add(kTaskError);
+      return;
+    }
+  }
+
+  // Groups that match the same file must not edit it concurrently, so they run
+  // one after another in a single job. Other groups run their chunks in parallel.
+  for (var related in _groupsSharingFiles(groups.values.toList())) {
+    final steps = [
+      for (var group in related)
+        (
+          commands: group.scripts
+              .map((script) => script.trim().split(RegExp(r'\s+')))
+              .toList(),
+          chunks: chunkFiles(group.files, maxArgLength: maxArgLength),
+        ),
+    ];
+    if (steps.length > 1) {
+      processesPool.addJob(() async {
+        for (var step in steps) {
+          for (var files in step.chunks) {
+            await runCommands(step.commands, files);
+          }
+        }
+      });
+    } else {
+      for (var files in steps.single.chunks) {
+        processesPool.addJob(() => runCommands(steps.single.commands, files));
       }
     }
   }
@@ -158,4 +183,21 @@ Future<Context> runAll({
     throw ctx;
   }
   return ctx;
+}
+
+/// Partitions [groups] into sets connected by shared files, keeping config order.
+List<List<Group>> _groupsSharingFiles(List<Group> groups) {
+  final parent = List.generate(groups.length, (i) => i);
+  int find(int i) => parent[i] == i ? i : parent[i] = find(parent[i]);
+  final owner = <String, int>{};
+  for (var i = 0; i < groups.length; i++) {
+    for (var file in groups[i].files) {
+      parent[find(i)] = find(owner.putIfAbsent(file, () => i));
+    }
+  }
+  final sets = <int, List<Group>>{};
+  for (var i = 0; i < groups.length; i++) {
+    sets.putIfAbsent(find(i), () => []).add(groups[i]);
+  }
+  return sets.values.toList();
 }

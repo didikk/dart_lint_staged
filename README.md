@@ -57,7 +57,7 @@ Options:
 - `--diff`: Override `--staged` with arbitrary revisions (e.g. `--diff="branch1...branch2"`). Implies `--no-stash`.
 - `--diff-filter`: Override the default `ACMR` filter. See [git diff --diff-filter](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203).
 - `--no-stash`: Disable the backup stash (and revert on error).
-- `--processes`: Cap concurrent processes. Defaults to `Platform.numberOfProcessors`.
+- `--processes`: Cap concurrent processes (must be >= 1). Defaults to `Platform.numberOfProcessors`.
 
 ## Configuration
 
@@ -86,13 +86,13 @@ This includes all `.dart` files but excludes `.g.dart` files.
 
 ## What commands are supported?
 
-Any executables on your `$PATH` (for example `dart`, `flutter`).
+Any executables on your `$PATH` (for example `dart`, `flutter`). Commands are not run through a shell: no quoting, pipes or globbing; only ` && ` chaining is supported.
 
-`dart_lint_staged` uses `Process.run` to run commands. Pass arguments separated by spaces as you would in the shell.
+`dart_lint_staged` uses `Process.run` to run commands. Pass arguments separated by spaces; there is no shell, so quotes are passed literally.
 
 ## Running multiple commands in a sequence
 
-Join commands with ` && `. They run sequentially; each receives the batched file list:
+Join commands with ` && `. They run sequentially (a failure stops the chain); each receives the batched file list. If several globs match the same file, their commands also run one after another in config order:
 
 ```yaml
 lint_staged:
@@ -109,6 +109,8 @@ In `.husky/pre-commit`:
 
 dart run dart_lint_staged
 ```
+
+For faster hooks, skip `dart run` startup by running `dart pub global activate dart_lint_staged` and calling `dart_lint_staged` directly in the hook.
 
 _Note: do not pass file paths yourself; dart_lint_staged appends staged files for you._
 

@@ -222,5 +222,49 @@ void main() {
       expect(await project.fs.read('lib/main.dart'), equals(kFormattedDart));
       expect(await project.fs.read('lib/foo.g.dart'), equals(kUnFormattedDart));
     });
+
+    test('runs chained commands in order', () async {
+      final project = IntegrationProject();
+      await project.setup();
+      await project.fs.write('pubspec.yaml',
+          "lint_staged:\n  'lib/**.dart': dart format && dart format --set-exit-if-changed\n");
+      await project.fs.write('lib/main.dart', kUnFormattedDart);
+      await project.git.run(['add', 'lib/main.dart']);
+
+      await project.gitCommit();
+
+      expect(await project.git.commitCount, equals(2));
+      expect(await project.fs.read('lib/main.dart'), equals(kFormattedDart));
+    });
+
+    test('reverts and restores unstaged changes when command is missing',
+        () async {
+      final project = IntegrationProject();
+      await project.setup();
+      await project.fs.write('pubspec.yaml',
+          "lint_staged:\n  'lib/**.dart': no_such_command_xyz\n");
+      await project.fs.write('lib/main.dart', kFormattedDart);
+      await project.git.run(['add', 'lib/main.dart']);
+      await project.fs.write('lib/main.dart', '$kFormattedDart// unstaged\n');
+
+      await expectLater(project.gitCommit(), throwsIntegrationTestError);
+
+      expect(await project.fs.read('lib/main.dart'),
+          equals('$kFormattedDart// unstaged\n'));
+      expect(await project.git.commitCount, equals(1));
+    });
+
+    test('runs globs that match the same file in order', () async {
+      final project = IntegrationProject();
+      await project.setup();
+      await project.fs.write('pubspec.yaml',
+          "lint_staged:\n  'lib/**.dart': dart format\n  '**.dart': dart format --set-exit-if-changed\n");
+      await project.fs.write('lib/main.dart', kUnFormattedDart);
+      await project.git.run(['add', 'lib/main.dart']);
+
+      await project.gitCommit();
+
+      expect(await project.fs.read('lib/main.dart'), equals(kFormattedDart));
+    });
   });
 }
