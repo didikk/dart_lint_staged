@@ -4,19 +4,19 @@
 
 Run linters on git staged files for your Flutter and Dart projects.
 
-This package is an **improved fork** of [`hyiso/lint_staged`](https://github.com/hyiso/lint_staged), aligned with the JavaScript [lint-staged](https://github.com/okonet/lint-staged) approach: staged files are **batched into each command** (not one process per file), and concurrency defaults to the number of CPU cores so large commits do not hang the machine.
+This package is a fork of [`hyiso/lint_staged`](https://github.com/hyiso/lint_staged), updated to match the JavaScript [lint-staged](https://github.com/okonet/lint-staged) model: each command receives the matched staged files in one invocation, and concurrency defaults to the number of CPU cores so large commits do not hang the machine.
 
 ## Improvements over the original
 
-- **Batched commands** — e.g. `dart format a.dart b.dart …` in one process
-- **Bounded concurrency** — default `--processes` = CPU count (no unbounded fan-out)
-- Safer process pool (no post-run PID kill; iterative workers)
+- Batched commands: one process runs `dart format a.dart b.dart …`
+- Bounded concurrency: `--processes` defaults to CPU count (no unbounded fan-out)
+- Safer process pool: no post-run PID kill; iterative workers
 
 Config in `pubspec.yaml` still uses the `lint_staged:` key for drop-in compatibility.
 
 ## Why
 
-Linting makes more sense when run before committing your code. By doing so you can ensure no errors go into the repository and enforce code style. But running a lint process on a whole project is slow, and linting results can be irrelevant. Ultimately you only want to lint files that will be committed.
+Full-project lint slows commits and surfaces noise from untouched files. Run hooks only on staged files so the check matches what you are about to commit.
 
 ## Installation and setup
 
@@ -24,7 +24,7 @@ Linting makes more sense when run before committing your code. By doing so you c
    - `dart pub add --dev dart_lint_staged`
 2. Set up the `pre-commit` git hook to run *dart_lint_staged*
    - [Husky](https://github.com/hyiso/husky) is a recommended choice for configuring git hooks
-   - Read more about git hooks [here](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks)
+   - Git hooks docs: [git-scm.com](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks)
 3. Configure tasks in `pubspec.yaml`:
    ```yaml
    lint_staged:
@@ -53,11 +53,11 @@ Options:
   --processes, -p [int]              maximum concurrent processes (default: number of CPU cores)
 ```
 
-- **`--allow-empty`**: By default, when linter tasks undo all staged changes, dart_lint_staged will exit with an error and abort the commit. Use this flag to allow creating empty git commits.
-- **`--diff`**: Override `--staged` with arbitrary revisions (e.g. `--diff="branch1...branch2"`). Implies `--no-stash`.
-- **`--diff-filter`**: Override the default `ACMR` filter. See [git diff --diff-filter](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203).
-- **`--no-stash`**: Disable the backup stash (and revert on error).
-- **`--processes`**: Cap concurrent processes. Defaults to `Platform.numberOfProcessors`.
+- `--allow-empty`: By default, when linter tasks undo all staged changes, dart_lint_staged will exit with an error and abort the commit. Use this flag to allow creating empty git commits.
+- `--diff`: Override `--staged` with arbitrary revisions (e.g. `--diff="branch1...branch2"`). Implies `--no-stash`.
+- `--diff-filter`: Override the default `ACMR` filter. See [git diff --diff-filter](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203).
+- `--no-stash`: Disable the backup stash (and revert on error).
+- `--processes`: Cap concurrent processes. Defaults to `Platform.numberOfProcessors`.
 
 ## Configuration
 
@@ -68,7 +68,7 @@ lint_staged:
   'lib/**.dart': your-cmd
 ```
 
-This runs `your-cmd` with **all matching staged files** passed as arguments (chunked if the argv would exceed platform limits).
+This runs `your-cmd` with all matching staged files passed as arguments (chunked if the argv would exceed platform limits).
 
 ## Filtering files
 
@@ -110,7 +110,7 @@ In `.husky/pre-commit`:
 dart run dart_lint_staged
 ```
 
-_Note: do not pass file paths yourself — dart_lint_staged appends staged files for you._
+_Note: do not pass file paths yourself; dart_lint_staged appends staged files for you._
 
 ### Format staged Dart files
 
