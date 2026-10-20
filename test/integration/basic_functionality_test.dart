@@ -51,6 +51,24 @@ void main() {
       expect(await project.fs.read('lib/foo.dart'), equals(kFormattedDart));
     });
 
+    test('runs dart fix once per file when several files are staged', () async {
+      final project = IntegrationProject();
+      await project.setup();
+
+      await project.fs.write('pubspec.yaml', kConfigFormatAndFix);
+
+      await project.fs.write('lib/main.dart', kUnFormattedDart);
+      await project.git.run(['add', 'lib/main.dart']);
+      await project.fs.write('lib/foo.dart', kUnFormattedDart);
+      await project.git.run(['add', 'lib/foo.dart']);
+
+      await project.gitCommit();
+
+      expect(await project.git.commitCount, equals(2));
+      expect(await project.fs.read('lib/main.dart'), equals(kFormattedDart));
+      expect(await project.fs.read('lib/foo.dart'), equals(kFormattedDart));
+    });
+
     test('fails to commit entire staged file when errors from linter',
         () async {
       final project = IntegrationProject();

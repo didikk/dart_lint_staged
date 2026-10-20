@@ -2,7 +2,7 @@ name: dart_lint_staged
 description:
   Run linters on git staged files for your Flutter and Dart projects.
   Improved fork of lint_staged with JS lint-staged-style batched commands.
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/didikk/dart_lint_staged
 repository: https://github.com/didikk/dart_lint_staged
 

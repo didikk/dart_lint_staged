@@ -95,28 +95,37 @@ Future<Context> runAll({
   Future<void> runCommands(
       List<List<String>> commands, List<String> files) async {
     for (var command in commands) {
-      final script = command.join(' ');
-      final messsages = ['$script ${files.join(' ')}'];
-      try {
-        final result = await ProcessTask(
-          command.first,
-          [...command.skip(1), ...files],
-          workingDirectory: workingDirectory,
-        ).run();
-        if (result.stderr.toString().trim().isNotEmpty) {
-          messsages.add(red(result.stderr.toString().trim()));
+      // `dart fix` accepts a single path, so it runs once per file.
+      final batches =
+          command.length > 1 && command[0] == 'dart' && command[1] == 'fix'
+              ? [
+                  for (var f in files) [f]
+                ]
+              : [files];
+      for (var batch in batches) {
+        final script = command.join(' ');
+        final messsages = ['$script ${batch.join(' ')}'];
+        try {
+          final result = await ProcessTask(
+            command.first,
+            [...command.skip(1), ...batch],
+            workingDirectory: workingDirectory,
+          ).run();
+          if (result.stderr.toString().trim().isNotEmpty) {
+            messsages.add(red(result.stderr.toString().trim()));
+          }
+          if (result.stdout.toString().trim().isNotEmpty) {
+            messsages.add(result.stdout.toString().trim());
+          }
+          _verbose(messsages.join('\n'));
+          if (result.exitCode == 0) continue;
+        } on Exception catch (e) {
+          messsages.add(red(e is ProcessException ? e.message : '$e'));
         }
-        if (result.stdout.toString().trim().isNotEmpty) {
-          messsages.add(result.stdout.toString().trim());
-        }
-        _verbose(messsages.join('\n'));
-        if (result.exitCode == 0) continue;
-      } on Exception catch (e) {
-        messsages.add(red(e is ProcessException ? e.message : '$e'));
+        ctx.output.add(messsages.join('\n'));
+        ctx.errors.add(kTaskError);
+        return;
       }
-      ctx.output.add(messsages.join('\n'));
-      ctx.errors.add(kTaskError);
-      return;
     }
   }
 

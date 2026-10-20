@@ -1,6 +1,7 @@
 # dart_lint_staged
 
 [![CI](https://github.com/didikk/dart_lint_staged/actions/workflows/ci.yml/badge.svg)](https://github.com/didikk/dart_lint_staged/actions/workflows/ci.yml)
+[![pub package](https://img.shields.io/pub/v/dart_lint_staged.svg)](https://pub.dev/packages/dart_lint_staged)
 
 Run linters on git staged files for your Flutter and Dart projects.
 
@@ -98,6 +99,21 @@ Join commands with ` && `. They run sequentially (a failure stops the chain); ea
 dart_lint_staged:
   'lib/**.dart': dart format && dart fix --apply
 ```
+
+Or list one command per line (same order, same stop-on-failure behavior):
+
+```yaml
+dart_lint_staged:
+  'lib/**.dart':
+    - dart format
+    - dart fix --apply
+    - flutter analyze
+  # Exclude generated files (prepend glob with !)
+  '!lib/**.g.dart': ''
+  '!lib/**.freezed.dart': ''
+```
+
+`dart fix` accepts a single path, so it runs once per file. Other commands still get the batched list.
 
 ## Examples
 
