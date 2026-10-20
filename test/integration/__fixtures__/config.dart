@@ -10,3 +10,7 @@ const kConfigFormatFixWithIgnore = '''dart_lint_staged:
 const kConfigFormatExit = '''dart_lint_staged:
   'lib/**.dart': dart format --set-exit-if-changed
 ''';
+
+const kConfigFormatAndFix = '''dart_lint_staged:
+  'lib/**.dart': dart format && dart fix --apply
+''';

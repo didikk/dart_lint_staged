@@ -1,3 +1,8 @@
+## 1.0.1
+
+- **FIX**: `dart fix` runs once per staged file (it accepts only one path); previously multi-file commits failed with "Only one file or directory is expected."
+- **DOCS**: pub.dev version badge; multiline (YAML list) command example
+
 ## 1.0.0
 
 Initial release of **dart_lint_staged**, an improved fork of
