@@ -81,4 +81,24 @@ void main() {
       expect(peak, 2);
     });
   });
+
+  group('Semaphore', () {
+    test('never lets more than size holders run at once', () async {
+      final slots = Semaphore(2);
+      var running = 0;
+      var peak = 0;
+      await Future.wait([
+        for (var i = 0; i < 6; i++)
+          () async {
+            await slots.acquire();
+            peak = ++running > peak ? running : peak;
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+            running--;
+            slots.release();
+          }()
+      ]);
+      expect(peak, 2);
+      expect(running, 0);
+    });
+  });
 }

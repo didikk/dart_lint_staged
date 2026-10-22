@@ -1,3 +1,8 @@
+## 1.0.2
+
+- **PERF**: `dart fix` runs its per-file invocations in parallel instead of one after another
+- **FIX**: `--processes` now caps task processes across all jobs (shared limiter); after a `dart fix` failure, files still queued are skipped
+
 ## 1.0.1
 
 - **FIX**: `dart fix` runs once per staged file (it accepts only one path); previously multi-file commits failed with "Only one file or directory is expected."

@@ -92,38 +92,63 @@ Future<Context> runAll({
   spinner.progress('Run tasks for staged files...');
   final poolSize = numOfProcesses ?? Platform.numberOfProcessors;
   final processesPool = ProcessesPool(size: poolSize);
+
+  /// Caps concurrent task processes at `--processes`, across all jobs.
+  final slots = Semaphore(poolSize);
+
+  /// Runs [command] on [batch]; records the error and returns false on failure.
+  /// [cancelled] is checked once a slot is free; a batch still queued behind a
+  /// failure is skipped (counts as success, the failure is already recorded).
+  Future<bool> runBatch(List<String> command, List<String> batch,
+      {bool Function()? cancelled}) async {
+    final script = command.join(' ');
+    final messsages = ['$script ${batch.join(' ')}'];
+    try {
+      await slots.acquire();
+      final ProcessResult result;
+      try {
+        if (cancelled?.call() ?? false) return true;
+        result = await ProcessTask(
+          command.first,
+          [...command.skip(1), ...batch],
+          workingDirectory: workingDirectory,
+        ).run();
+      } finally {
+        slots.release();
+      }
+      if (result.stderr.toString().trim().isNotEmpty) {
+        messsages.add(red(result.stderr.toString().trim()));
+      }
+      if (result.stdout.toString().trim().isNotEmpty) {
+        messsages.add(result.stdout.toString().trim());
+      }
+      _verbose(messsages.join('\n'));
+      if (result.exitCode == 0) return true;
+    } on Exception catch (e) {
+      messsages.add(red(e is ProcessException ? e.message : '$e'));
+    }
+    ctx.output.add(messsages.join('\n'));
+    ctx.errors.add(kTaskError);
+    return false;
+  }
+
   Future<void> runCommands(
       List<List<String>> commands, List<String> files) async {
     for (var command in commands) {
-      // `dart fix` accepts a single path, so it runs once per file.
-      final batches =
-          command.length > 1 && command[0] == 'dart' && command[1] == 'fix'
-              ? [
-                  for (var f in files) [f]
-                ]
-              : [files];
-      for (var batch in batches) {
-        final script = command.join(' ');
-        final messsages = ['$script ${batch.join(' ')}'];
-        try {
-          final result = await ProcessTask(
-            command.first,
-            [...command.skip(1), ...batch],
-            workingDirectory: workingDirectory,
-          ).run();
-          if (result.stderr.toString().trim().isNotEmpty) {
-            messsages.add(red(result.stderr.toString().trim()));
-          }
-          if (result.stdout.toString().trim().isNotEmpty) {
-            messsages.add(result.stdout.toString().trim());
-          }
-          _verbose(messsages.join('\n'));
-          if (result.exitCode == 0) continue;
-        } on Exception catch (e) {
-          messsages.add(red(e is ProcessException ? e.message : '$e'));
-        }
-        ctx.output.add(messsages.join('\n'));
-        ctx.errors.add(kTaskError);
+      // `dart fix` accepts a single path, so it runs once per file. Each run
+      // only edits its own file, so run them in parallel; `slots` bounds them.
+      if (command.length > 1 && command[0] == 'dart' && command[1] == 'fix') {
+        var failed = false;
+        await Future.wait([
+          for (var f in files)
+            () async {
+              if (!await runBatch(command, [f], cancelled: () => failed)) {
+                failed = true;
+              }
+            }()
+        ]);
+        if (failed) return;
+      } else if (!await runBatch(command, files)) {
         return;
       }
     }
