@@ -113,7 +113,7 @@ dart_lint_staged:
   '!lib/**.freezed.dart': ''
 ```
 
-`dart fix` accepts a single path, so it runs once per file. Other commands still get the batched list.
+`dart fix` accepts a single path, so it runs once per file, in parallel (bounded by `--processes`). Other commands still get the batched list.
 
 ## Examples
 

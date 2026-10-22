@@ -69,6 +69,50 @@ void main() {
       expect(await project.fs.read('lib/foo.dart'), equals(kFormattedDart));
     });
 
+    test('runs dart fix in parallel windows across more files than processes',
+        () async {
+      final project = IntegrationProject();
+      await project.setup();
+
+      await project.fs.write('pubspec.yaml', kConfigFormatAndFix);
+
+      final names = ['main', 'foo', 'bar'];
+      for (var name in names) {
+        await project.fs.write('lib/$name.dart', kUnFormattedDart);
+        await project.git.run(['add', 'lib/$name.dart']);
+      }
+
+      await project.gitCommit(numOfProcesses: 2);
+
+      expect(await project.git.commitCount, equals(2));
+      for (var name in names) {
+        expect(await project.fs.read('lib/$name.dart'), equals(kFormattedDart));
+      }
+    });
+
+    test('reverts when dart fix fails on files queued behind the slot limit',
+        () async {
+      final project = IntegrationProject();
+      await project.setup();
+
+      await project.fs.write('pubspec.yaml', '''dart_lint_staged:
+  'lib/**.dart': dart fix --bogus-flag
+''');
+
+      for (var name in ['main', 'foo', 'bar']) {
+        await project.fs.write('lib/$name.dart', kUnFormattedDart);
+        await project.git.run(['add', 'lib/$name.dart']);
+      }
+      final status = await project.git.status();
+
+      await expectLater(
+          project.gitCommit(numOfProcesses: 1), throwsIntegrationTestError);
+
+      expect(await project.git.commitCount, equals(1));
+      expect(await project.git.status(), equals(status));
+      expect(await project.fs.read('lib/main.dart'), equals(kUnFormattedDart));
+    });
+
     test('fails to commit entire staged file when errors from linter',
         () async {
       final project = IntegrationProject();

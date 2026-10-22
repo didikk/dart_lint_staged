@@ -43,6 +43,33 @@ class ProcessTask {
   }
 }
 
+/// Counting semaphore: caps how many processes run at once across all jobs.
+class Semaphore {
+  final int size;
+  final Queue<Completer<void>> _waiters = Queue();
+  int _held = 0;
+
+  Semaphore(this.size) : assert(size > 0);
+
+  Future<void> acquire() {
+    if (_held < size) {
+      _held++;
+      return Future.value();
+    }
+    final waiter = Completer<void>();
+    _waiters.add(waiter);
+    return waiter.future;
+  }
+
+  void release() {
+    if (_waiters.isEmpty) {
+      _held--;
+    } else {
+      _waiters.removeFirst().complete(); // hand the slot straight over
+    }
+  }
+}
+
 typedef PoolJob = Future<void> Function();
 
 class ProcessesPool {
