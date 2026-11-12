@@ -1,3 +1,8 @@
+## 1.0.3
+
+- **FIX**: `dart fix` no longer starts one process per staged file. One analysis server computes the fixes for the whole batch (`edit.bulkFixes`), and only staged files are edited. Large commits could otherwise exhaust memory and freeze the machine.
+- **PERF**: Analyzer commands (`dart fix`, `dart analyze`, `flutter analyze`) run one at a time, separate from `--processes`
+
 ## 1.0.2
 
 - **PERF**: `dart fix` runs its per-file invocations in parallel instead of one after another
