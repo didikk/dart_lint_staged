@@ -10,7 +10,10 @@ This package is a fork of [`hyiso/lint_staged`](https://github.com/hyiso/lint_st
 ## Improvements over the original
 
 - Batched commands: one process runs `dart format a.dart b.dart …`
-- Bounded concurrency: `--processes` defaults to CPU count (no unbounded fan-out)
+- Batched `dart fix`: one analysis server fixes all staged files in a batch and edits only those files (plain `dart fix` takes one path and analyzes the whole package each run)
+- Bounded concurrency: `--processes` defaults to CPU count and caps processes across all jobs; analyzer commands (`dart fix`, `dart analyze`, `flutter analyze`) run one at a time
+- Ordered chains: ` && ` commands run in order per file chunk, also across globs matching the same file; a failure stops the chain
+- Safer failure handling: a missing executable or failed task restores the repo instead of crashing; `MERGE_MSG` is restored after a revert
 - Safer process pool: no post-run PID kill; iterative workers
 
 Config lives under the `dart_lint_staged:` key in `pubspec.yaml`. The legacy `lint_staged:` key is still read as a fallback.
@@ -113,7 +116,7 @@ dart_lint_staged:
   '!lib/**.freezed.dart': ''
 ```
 
-`dart fix` accepts a single path, so it runs once per file, in parallel (bounded by `--processes`). Other commands still get the batched list.
+`dart fix --apply` (optionally with `--code=...`) runs one analysis server for the whole batch and edits only the staged files. Analyzer commands (`dart fix`, `dart analyze`, `flutter analyze`) run one at a time; other commands use the `--processes` pool.
 
 ## Examples
 

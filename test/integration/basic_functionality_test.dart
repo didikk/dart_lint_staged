@@ -51,7 +51,7 @@ void main() {
       expect(await project.fs.read('lib/foo.dart'), equals(kFormattedDart));
     });
 
-    test('runs dart fix once per file when several files are staged', () async {
+    test('runs dart fix on a batch of several staged files', () async {
       final project = IntegrationProject();
       await project.setup();
 
@@ -69,8 +69,7 @@ void main() {
       expect(await project.fs.read('lib/foo.dart'), equals(kFormattedDart));
     });
 
-    test('runs dart fix in parallel windows across more files than processes',
-        () async {
+    test('runs dart fix across more files than processes', () async {
       final project = IntegrationProject();
       await project.setup();
 
@@ -88,6 +87,32 @@ void main() {
       for (var name in names) {
         expect(await project.fs.read('lib/$name.dart'), equals(kFormattedDart));
       }
+    });
+
+    test('dart fix only edits staged files', () async {
+      final project = IntegrationProject();
+      await project.setup();
+
+      await project.fs.write('pubspec.yaml', '''dart_lint_staged:
+  'lib/**.dart': dart fix --apply
+''');
+      await project.fs.write('analysis_options.yaml',
+          'linter:\n  rules:\n    - prefer_single_quotes\n');
+      await project.fs.write('lib/b.dart', 'var b = "b";\n');
+      await project.git
+          .run(['add', 'pubspec.yaml', 'analysis_options.yaml', 'lib/b.dart']);
+      await project.git.run(['commit', '-m', 'setup']);
+
+      await project.fs.write('lib/a.dart', 'var a = "a";\n');
+      await project.git.run(['add', 'lib/a.dart']);
+      await project.fs.write('lib/b.dart', 'var b = "b2";\n');
+
+      await project.gitCommit();
+
+      expect(await project.fs.read('lib/a.dart'), "var a = 'a';\n");
+      expect(await project.fs.read('lib/b.dart'), 'var b = "b2";\n');
+      expect((await project.git.run(['show', 'HEAD:lib/a.dart'])).stdout,
+          contains("var a = 'a';"));
     });
 
     test('reverts when dart fix fails on files queued behind the slot limit',

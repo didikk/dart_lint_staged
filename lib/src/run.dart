@@ -6,6 +6,7 @@ import 'package:verbose/verbose.dart';
 import 'chunk.dart';
 import 'config.dart';
 import 'context.dart';
+import 'dart_fix.dart';
 import 'fs.dart';
 import 'git.dart';
 import 'group.dart';
@@ -96,25 +97,38 @@ Future<Context> runAll({
   /// Caps concurrent task processes at `--processes`, across all jobs.
   final slots = Semaphore(poolSize);
 
+  /// Analyzer commands each load the whole package, so only one runs at a time.
+  final heavySlots = Semaphore(1);
+
   /// Runs [command] on [batch]; records the error and returns false on failure.
-  /// [cancelled] is checked once a slot is free; a batch still queued behind a
-  /// failure is skipped (counts as success, the failure is already recorded).
-  Future<bool> runBatch(List<String> command, List<String> batch,
-      {bool Function()? cancelled}) async {
+  Future<bool> runBatch(List<String> command, List<String> batch) async {
     final script = command.join(' ');
     final messsages = ['$script ${batch.join(' ')}'];
+    final heavy = _isAnalyzerCommand(command);
     try {
-      await slots.acquire();
+      if (heavy) await heavySlots.acquire();
       final ProcessResult result;
       try {
-        if (cancelled?.call() ?? false) return true;
-        result = await ProcessTask(
-          command.first,
-          [...command.skip(1), ...batch],
-          workingDirectory: workingDirectory,
-        ).run();
+        await slots.acquire();
+        try {
+          final fixArgs = _dartFixArgs(command);
+          result = fixArgs != null
+              ? await dartFix(batch,
+                  codes: [
+                    for (var a in fixArgs)
+                      if (a.startsWith('--code=')) ...a.substring(7).split(',')
+                  ],
+                  workingDirectory: workingDirectory)
+              : await ProcessTask(
+                  command.first,
+                  [...command.skip(1), ...batch],
+                  workingDirectory: workingDirectory,
+                ).run();
+        } finally {
+          slots.release();
+        }
       } finally {
-        slots.release();
+        if (heavy) heavySlots.release();
       }
       if (result.stderr.toString().trim().isNotEmpty) {
         messsages.add(red(result.stderr.toString().trim()));
@@ -135,22 +149,7 @@ Future<Context> runAll({
   Future<void> runCommands(
       List<List<String>> commands, List<String> files) async {
     for (var command in commands) {
-      // `dart fix` accepts a single path, so it runs once per file. Each run
-      // only edits its own file, so run them in parallel; `slots` bounds them.
-      if (command.length > 1 && command[0] == 'dart' && command[1] == 'fix') {
-        var failed = false;
-        await Future.wait([
-          for (var f in files)
-            () async {
-              if (!await runBatch(command, [f], cancelled: () => failed)) {
-                failed = true;
-              }
-            }()
-        ]);
-        if (failed) return;
-      } else if (!await runBatch(command, files)) {
-        return;
-      }
+      if (!await runBatch(command, files)) return;
     }
   }
 
@@ -217,6 +216,24 @@ Future<Context> runAll({
     throw ctx;
   }
   return ctx;
+}
+
+bool _isAnalyzerCommand(List<String> command) =>
+    command.length > 1 &&
+    (command[0] == 'dart' || command[0] == 'flutter') &&
+    (command[1] == 'analyze' || (command[0] == 'dart' && command[1] == 'fix'));
+
+/// Args after `dart fix` when they are only `--apply` / `--code=...`, so the
+/// batch can go to [dartFix]; null otherwise (run the command as written).
+List<String>? _dartFixArgs(List<String> command) {
+  if (command.length < 2 || command[0] != 'dart' || command[1] != 'fix') {
+    return null;
+  }
+  final args = command.skip(2).toList();
+  return args.contains('--apply') &&
+          args.every((a) => a == '--apply' || a.startsWith('--code='))
+      ? args
+      : null;
 }
 
 /// Partitions [groups] into sets connected by shared files, keeping config order.
